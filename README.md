@@ -11,6 +11,10 @@
 
 **zenv** (Zero-Config Environment) ist ein hochperformantes, professionelles Docker-Entwicklungsfundament für moderne **Laravel 13** Enterprise-Anwendungen. Es eliminiert langsame Mounts, Dateirechte-Konflikte (UID/GID) und komplexe Setup-Skripte.
 
+<p align="center">
+  <img src="art/zenv-hub.png" alt="zenv Zero-Config Hub Dashboard" width="100%">
+</p>
+
 ---
 
 ## 🏛️ Architektur & Systemübersicht
