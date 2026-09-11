@@ -185,12 +185,16 @@ jobs:
           ./zenv php -v | grep -q "PHP 8.4"
           echo "PHP 8.4 verified"
           ./zenv php -r "
-            \$extensions = ['pdo_mysql', 'redis', 'opcache', 'gd', 'intl', 'mbstring', 'zip', 'bcmath'];
+            \$extensions = ['pdo_mysql', 'redis', 'gd', 'intl', 'mbstring', 'zip', 'bcmath'];
             foreach (\$extensions as \$ext) {
               if (!extension_loaded(\$ext)) {
                 fwrite(STDERR, \"Missing extension: \$ext\\n\");
                 exit(1);
               }
+            }
+            if (!extension_loaded('Zend OPcache') && !extension_loaded('opcache')) {
+              fwrite(STDERR, \"Missing extension: opcache\\n\");
+              exit(1);
             }
             echo 'All core extensions loaded successfully!\\n';
           "
