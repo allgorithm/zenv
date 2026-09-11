@@ -6,8 +6,10 @@
 export PATH="/Applications/Docker.app/Contents/Resources/bin:/usr/local/bin:/opt/homebrew/bin:$PATH"
 
 # Setzen der Benutzer-ID und Gruppen-ID für den Docker-Build
-export USER_UID=$(id -u)
-export USER_GID=$(id -g)
+USER_UID=$(id -u)
+export USER_UID
+USER_GID=$(id -g)
+export USER_GID
 
 # Docker Compose Befehl ermitteln (modern vs. legacy)
 if docker compose version >/dev/null 2>&1; then
