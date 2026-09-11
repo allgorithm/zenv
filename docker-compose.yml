@@ -27,7 +27,7 @@ services:
     container_name: zenv-web
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "80:80"
     volumes:
       - .:/var/www/html
       - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
@@ -83,7 +83,16 @@ services:
       dockerfile: docker/Dockerfile
     container_name: zenv-queue
     restart: unless-stopped
-    command: php artisan queue:work --verbose --tries=3 --timeout=90
+    command:
+      - sh
+      - -c
+      - |
+        if [ -f artisan ]; then
+          php artisan queue:work --verbose --tries=3 --timeout=90
+        else
+          echo "Package mode - no artisan found. Queue worker idle."
+          exec sleep infinity
+        fi
     volumes:
       - .:/var/www/html
     depends_on:
