@@ -1,14 +1,15 @@
 # ⚡️ zenv — Enterprise Zero-Config Docker Environment
 
 [![PHP 8.4+](https://img.shields.io/badge/PHP-8.4+-777BB4.svg?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
-[![Laravel 12](https://img.shields.io/badge/Laravel-12.x-FF2D20.svg?style=for-the-badge&logo=laravel&logoColor=white)](https://laravel.com)
+[![Laravel 13](https://img.shields.io/badge/Laravel-13.x-FF2D20.svg?style=for-the-badge&logo=laravel&logoColor=white)](https://laravel.com)
 [![Filament 5](https://img.shields.io/badge/Filament-5.x-FDAE4B.svg?style=for-the-badge&logo=laravel&logoColor=white)](https://filamentphp.com)
 [![Livewire 4](https://img.shields.io/badge/Livewire-4.x-4E56A6.svg?style=for-the-badge&logo=livewire&logoColor=white)](https://livewire.laravel.com)
 [![Vite 6](https://img.shields.io/badge/Vite-6.x-646CFF.svg?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev)
 [![Docker](https://img.shields.io/badge/Docker-Supported-2496ED.svg?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com)
+[![CI Pipeline](https://img.shields.io/badge/CI-Automated-success.svg?style=for-the-badge&logo=githubactions&logoColor=white)](.github/workflows/ci.yml)
 [![License MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-**zenv** (Zero-Config Environment) ist ein hochperformantes, professionelles Docker-Entwicklungsfundament für moderne **Laravel 12** Enterprise-Anwendungen. Es eliminiert langsame Mounts, Dateirechte-Konflikte (UID/GID) und komplexe Setup-Skripte.
+**zenv** (Zero-Config Environment) ist ein hochperformantes, professionelles Docker-Entwicklungsfundament für moderne **Laravel 13** Enterprise-Anwendungen. Es eliminiert langsame Mounts, Dateirechte-Konflikte (UID/GID) und komplexe Setup-Skripte.
 
 ---
 
@@ -21,7 +22,7 @@ graph TD
     Client -->|Webmail :8025| Mailpit[zenv-mailpit: Mail Sandbox]
     Client -->|S3 Console :9001| MinIO[zenv-minio: S3 Storage]
     
-    Nginx -->|FastCGI| App[zenv-app: PHP 8.4-FPM / Laravel 12]
+    Nginx -->|FastCGI| App[zenv-app: PHP 8.4-FPM / Laravel 13]
     App -->|Redis Protocol :6379| Redis[zenv-redis: Cache / Queue]
     App -->|Host Gateway| HostDB[(Host MariaDB / Persistent DB)]
     Queue[zenv-queue: Queue Worker] -->|Jobs| Redis
@@ -38,7 +39,7 @@ graph TD
 | **Mailpit Sandbox** | `zenv-mailpit` | `1025` / `8025` | `8025` | **[http://localhost:8025](http://localhost:8025)** (E-Mail UI) |
 | **MinIO S3 Storage** | `zenv-minio` | `9000` / `9001` | `9001` | **[http://localhost:9001](http://localhost:9001)** (AWS S3 Emulator) |
 | **Redis Cache** | `zenv-redis` | `6379` | `6379` | High-Speed Cache & Session Store |
-| **Queue Worker** | `zenv-queue` | - | - | Auto-executing `artisan queue:work` |
+| **Queue Worker** | `zenv-queue` | - | - | Auto-executing `artisan queue:work` (idles gracefully in Package Mode) |
 | **Host MariaDB** | *Host System* | `3306` | `3306` | Persistent DB via `host.docker.internal` |
 
 ---

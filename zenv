@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# zenv — Zero-Config Docker Environment CLI for Laravel 12 & PHP 8.4+
+# zenv — Zero-Config Docker Environment CLI for Laravel 13 & PHP 8.4+
 
 # PATH anpassen, um standardmäßige Docker-Installationspfade auf macOS einzuschließen
 export PATH="/Applications/Docker.app/Contents/Resources/bin:/usr/local/bin:/opt/homebrew/bin:$PATH"
@@ -14,6 +14,12 @@ if docker compose version >/dev/null 2>&1; then
     DOCKER_COMPOSE="docker compose"
 else
     DOCKER_COMPOSE="docker-compose"
+fi
+
+# TTY-Erkennung für interaktive Terminals vs. CI/CD und Pipes
+EXEC_FLAGS=(-i)
+if [ -t 0 ] && [ -t 1 ]; then
+    EXEC_FLAGS=(-it)
 fi
 
 # Hilfe anzeigen
@@ -71,36 +77,36 @@ case "$CMD" in
         $DOCKER_COMPOSE logs -f "$@"
         ;;
     artisan)
-        $DOCKER_COMPOSE exec -it app php artisan "$@"
+        $DOCKER_COMPOSE exec "${EXEC_FLAGS[@]}" app php artisan "$@"
         ;;
     composer)
-        $DOCKER_COMPOSE exec -it app composer "$@"
+        $DOCKER_COMPOSE exec "${EXEC_FLAGS[@]}" app composer "$@"
         ;;
     npm)
-        $DOCKER_COMPOSE exec -it app npm "$@"
+        $DOCKER_COMPOSE exec "${EXEC_FLAGS[@]}" app npm "$@"
         ;;
     npx)
-        $DOCKER_COMPOSE exec -it app npx "$@"
+        $DOCKER_COMPOSE exec "${EXEC_FLAGS[@]}" app npx "$@"
         ;;
     php)
-        $DOCKER_COMPOSE exec -it app php "$@"
+        $DOCKER_COMPOSE exec "${EXEC_FLAGS[@]}" app php "$@"
         ;;
     pest|test)
-        $DOCKER_COMPOSE exec -it app vendor/bin/pest "$@"
+        $DOCKER_COMPOSE exec "${EXEC_FLAGS[@]}" app vendor/bin/pest "$@"
         ;;
     mariadb|mysql)
         mariadb -h host.docker.internal -u root laravel "$@"
         ;;
     shell)
-        $DOCKER_COMPOSE exec -it app bash "$@"
+        $DOCKER_COMPOSE exec "${EXEC_FLAGS[@]}" app bash "$@"
         ;;
     init|init-laravel)
-        $DOCKER_COMPOSE exec -it app bash docker/init.sh
+        $DOCKER_COMPOSE exec "${EXEC_FLAGS[@]}" app bash docker/init.sh
         ;;
     help|-h|--help)
         show_help
         ;;
     *)
-        $DOCKER_COMPOSE exec -it app "$CMD" "$@"
+        $DOCKER_COMPOSE exec "${EXEC_FLAGS[@]}" app "$CMD" "$@"
         ;;
 esac

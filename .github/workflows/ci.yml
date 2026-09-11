@@ -1,0 +1,224 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - 'feature/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  static-analysis:
+    name: 🔍 Static Analysis & Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: ShellCheck CLI Script
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: '.'
+        env:
+          SHELLCHECK_OPTS: -e SC1091
+
+      - name: Validate Bash Syntax
+        run: bash -n zenv
+
+      - name: Lint Dockerfile (Hadolint)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: docker/Dockerfile
+          failure-threshold: error
+          ignore: DL3008,DL3015
+
+      - name: Validate Docker Compose Configuration
+        run: docker compose config --quiet
+
+      - name: Setup PHP for Syntax Check
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Validate PHP Syntax (Standalone Dashboard)
+        run: php -l public/index.php
+
+  security:
+    name: 🛡️ Security & Permissions Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check Script Executable Permissions
+        run: |
+          if [ ! -x "./zenv" ]; then
+            echo "Error: ./zenv is not executable! Run chmod +x zenv"
+            exit 1
+          fi
+          echo "./zenv executable permission verified"
+
+      - name: Secret Leak Detection (TruffleHog)
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
+
+  docker-build:
+    name: 🐳 Docker Build & Cache
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build zenv-app Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: false
+          load: true
+          tags: zenv-app:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            UID=1000
+            GID=1000
+
+  integration:
+    name: 🚀 Integration & Health Checks
+    needs: [static-analysis, security, docker-build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create .env from Example
+        run: cp .env.example .env
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start zenv Stack
+        run: ./zenv up --build
+
+      - name: Wait for Containers & Health Readiness
+        run: |
+          echo "Waiting for services to initialize..."
+          for i in {1..30}; do
+            STATUS=$(docker compose ps -q)
+            if [ -n "$STATUS" ]; then
+              echo "Containers running, waiting 5 seconds for services..."
+              sleep 5
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Verify Container Status
+        run: |
+          ./zenv ps
+          RUNNING=$(docker compose ps --services --filter "status=running" | wc -l)
+          echo "Running services: $RUNNING"
+          if [ "$RUNNING" -lt 5 ]; then
+            echo "Error: Less than expected services running!"
+            docker compose ps
+            docker compose logs
+            exit 1
+          fi
+
+      - name: Verify Nginx & Standalone Dashboard (HTTP 200)
+        run: |
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/)
+          echo "HTTP Status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Error: Expected HTTP 200 from http://localhost/, got $HTTP_STATUS"
+            docker logs zenv-web
+            exit 1
+          fi
+          curl -s http://localhost/ | grep -q "zenv Docker Environment"
+          echo "Dashboard rendered successfully"
+
+      - name: Verify Mailpit Webmail UI
+        run: |
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8025/)
+          echo "Mailpit HTTP Status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Error: Mailpit not responding on :8025"
+            exit 1
+          fi
+
+      - name: Verify MinIO S3 API
+        run: |
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9000/minio/health/live)
+          echo "MinIO Health Status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Error: MinIO live healthcheck failed"
+            exit 1
+          fi
+
+      - name: Verify Redis Ping
+        run: |
+          docker compose exec -T redis redis-cli ping | grep -q "PONG"
+          echo "Redis PONG verified"
+
+      - name: Verify PHP 8.4 Runtime & Core Extensions
+        run: |
+          ./zenv php -v | grep -q "PHP 8.4"
+          echo "PHP 8.4 verified"
+          ./zenv php -r "
+            \$extensions = ['pdo_mysql', 'redis', 'opcache', 'gd', 'intl', 'mbstring', 'zip', 'bcmath'];
+            foreach (\$extensions as \$ext) {
+              if (!extension_loaded(\$ext)) {
+                fwrite(STDERR, \"Missing extension: \$ext\\n\");
+                exit(1);
+              }
+            }
+            echo 'All core extensions loaded successfully!\\n';
+          "
+
+      - name: Verify Tooling (Composer, Node.js, NPM)
+        run: |
+          ./zenv composer --version
+          ./zenv node -v
+          ./zenv npm -v
+
+      - name: Verify Nginx Configuration Syntax inside Container
+        run: |
+          docker compose exec -T web nginx -t
+
+      - name: Verify Queue Worker Stability (Package-Mode Sleep Check)
+        run: |
+          sleep 5
+          STATUS=$(docker inspect --format='{{.State.Status}}' zenv-queue)
+          echo "zenv-queue status: $STATUS"
+          if [ "$STATUS" != "running" ]; then
+            echo "Error: zenv-queue is not running!"
+            docker logs zenv-queue
+            exit 1
+          fi
+          docker logs zenv-queue | grep -q "Package mode"
+          echo "Package mode idle notice verified"
+
+      - name: Teardown Environment
+        if: always()
+        run: |
+          ./zenv down -v

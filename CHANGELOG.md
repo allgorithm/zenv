@@ -7,10 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Enterprise GitHub Actions CI Pipeline**: Comprehensive CI/CD workflow (`.github/workflows/ci.yml`) featuring static analysis (ShellCheck, Bash syntax, Hadolint, Docker Compose validation, PHP syntax), security audit (TruffleHog secret scanning, file permissions), Docker layer caching (`type=gha`), and full-stack end-to-end integration smoke testing (HTTP 200 checks, Redis ping, PHP 8.4 runtime extension verification, and graceful teardown).
+- **Standalone Environment Hub & Status Dashboard**: Added `public/index.php` to provide immediate feedback on `http://localhost/` when running `zenv` in standalone or package mode, featuring live healthchecks (PHP-FPM, Nginx, Redis, Mailpit, MinIO, MariaDB host gateway, and Queue status) and a 1-click CLI reference.
+- **Enterprise `.gitignore` Configuration**: Comprehensive 8-section rule set covering strict zero-leak secret protection (`.env*`, private keys, certificates), granular Laravel 13 storage preservation, frontend/Vite artifacts, testing & profiling caches (PHPUnit, Pest, PHPStan, Infection), local database dumps/SQLite, and IDE/OS cleanup.
+- **Package-Mode Support for Queue Worker**: The `zenv-queue` container dynamically detects whether an `artisan` CLI exists at the project root. When running in Composer package or plugin development contexts, the container logs an informative idle notice and sleeps quietly instead of crashing.
+
 ### Changed
 
+- Enhanced `./zenv` CLI wrapper with dynamic TTY detection (`-t` only if interactive terminal is allocated) for smooth execution in non-interactive CI/CD environments and shell pipelines.
+- Updated framework compatibility and alignment to **Laravel 13** & PHP 8.4+.
 - Default Nginx host port changed from `8080` to `80` for direct `http://localhost` access.
 - Added Vite HMR Docker configuration (`host: '0.0.0.0'`, `hmr.host: 'localhost'`) to `vite.config.js`.
+- Configured Nginx FastCGI buffer sizes (`fastcgi_buffer_size 128k; fastcgi_buffers 4 256k; fastcgi_busy_buffers_size 256k;`) to prevent HTTP 502 "upstream sent too big header" errors with heavy Filament / Livewire payloads.
+
+### Fixed
+
+- Resolved `zenv-queue` container crash and restart loop (`Restarting (1)`) caused by `Could not open input file: artisan` in repositories without a full Laravel skeleton.
 
 ## [1.0.0] - 2026-09-05
 
